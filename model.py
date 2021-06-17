@@ -1,24 +1,47 @@
 import numpy as np
 
 # Disables some warnings (TensorFlow gives a lot of them)
-# import os
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # <- 0, 1, 2 or 3
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # <- 0, 1, 2 or 3
 
 import tensorflow as tf
 from tensorflow import keras
 
 
-# What is the point of this function?
-# Why can you call neural_net() 
+# tf.keras.backend.set_floatx('float64')
+
+
+# Usign this implementation neural_net(x) must be 
+# defined globally(?).
+@tf.function
 def f(x):
     f = neural_net(x)
     return f
 
 
+
 def differential_equation(x):
-    '''The equation which is to be solved. Have this in
-    the form of F(x, x', ... x^(n)) = 0.'''
-    pass
+    '''
+    The equation which is to be solved. Have this in
+    the form of F(x, x', ... x^(n)) = 0.
+
+    This function implements d^2f/dx^2 + df/dx - 10 = 0.
+    '''
+
+    with tf.GradientTape() as tape_1:
+        tape_1.watch(x)
+        with tf.GradientTape() as tape_2:
+            tape_2.watch(x)
+            y1 = f(x)
+            dy_dx = tape_2.gradient(y1, x)
+        d2y_dx2 = tape_1.gradient(dy_dx, x)
+
+    with tf.GradientTape() as tape_3:
+        tape_3.watch(x)
+        y2 = f(x)
+        dy_dx = tape_3.gradient(y2, x)
+
+    return (d2y_dx2 + dy_dx - 10)**2
 
 
 # ????
@@ -28,11 +51,24 @@ def boundary(b):
     pass
 
 
-# What is the point of using nested/inner functions?
+# Could and should this be done without nested functions?
 def my_loss_fn(x):
+    # Boundaries
+    a = x[0]
+    b = x[-1]
     def loss(y_true, y_pred):
+        # ????
+        # boundaries = tf.convert_to_tensor(np.array([a, b]))
+        # sum_over_boundary_terms = f(a)**2 + f(b)**2  # ???
+        # sum_over_boundary_terms = tf.math.reduce_sum(tf.map_fn(f, boundaries))
+        
+        # The differential equation mapped to values except boundaries:
+        # sum_over_F = tf.math.reduce_sum(tf.map_fn(differential_equation, x[1:-1]))
+
+        # This works but is not the correct solution:
+        sum_over_boundary_terms = 0
         sum_over_F = tf.math.reduce_sum(tf.map_fn(differential_equation, x))
-        sum_over_boundary_terms = 0  # ???
+
         return sum_over_F / i_max + sum_over_boundary_terms
     return loss
 
@@ -46,7 +82,51 @@ def build_model(units):
     return model
 
 
-def train_model(x_train, batchs, epochs):
-    pass
+# def build_and_train(a, b, i_max, epochs, units):
+#     x = np.linspace(a, b, i_max)
+#     x_tensor = tf.convert_to_tensor(x)
+#     x_tensor = tf.reshape(x_tensor, (i_max, 1))
+#     neural_net = build_model(units=units)
+#     neural_net.compile(loss=my_loss_fn(x_tensor), optimizer='adam')
+#     neural_net.fit(x=x_tensor, y=x_tensor, batch_size=i_max, epochs=epochs)
+#     return neural_net
+
+a = 0
+b = 2
+i_max = 100
+epochs = 1000
 
 
+# model = build_and_train(a, b, i_max, epochs, units)
+
+
+x = np.linspace(a, b, i_max)
+x_tensor = tf.convert_to_tensor(x)
+x_tensor = tf.reshape(x_tensor, (i_max, 1))
+
+neural_net = build_model(units=100)
+neural_net.compile(loss=my_loss_fn(x_tensor), optimizer='adam')
+
+neural_net.fit(x=x_tensor, y=x_tensor, batch_size=i_max, epochs=epochs)
+
+
+
+x_test = np.linspace(a, b, i_max)
+y_prediction = neural_net.predict(x_test)
+
+# The correct solution for d^2f/dx^2 + df/dx - 10 = 0 with the
+# domain 0<=x<=2 and boundary conditions f(0) = 0, f(2) = 0 is
+# f(x) = 20/(1-Exp(-2)) Exp(-x) - 20/(1-Exp(-2)) + 10x
+y_correct = 20 / (1 - np.exp(-2)) * np.exp(-x_test) - 20 / (1 - np.exp(-2)) + 10 * x_test
+
+
+import matplotlib.pyplot as plt
+
+plt.plot(x_test, y_prediction, label='The model')
+plt.plot(x_test, y_correct, label='Correct solution')
+plt.legend()
+plt.show()
+
+
+# loss_fn = my_loss_fn(x_tensor)
+# print(loss_fn(x_tensor, x_tensor))
