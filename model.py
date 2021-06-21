@@ -11,8 +11,7 @@ from tensorflow import keras
 # tf.keras.backend.set_floatx('float64')
 
 
-# Usign this implementation neural_net(x) must be 
-# defined globally(?).
+# IS this smart?
 @tf.function
 def f(x):
     f = neural_net(x)
@@ -57,16 +56,12 @@ def my_loss_fn(x):
     a = x[0]
     b = x[-1]
     def loss(y_true, y_pred):
-        # ????
-        # boundaries = tf.convert_to_tensor(np.array([a, b]))
-        # sum_over_boundary_terms = f(a)**2 + f(b)**2  # ???
-        # sum_over_boundary_terms = tf.math.reduce_sum(tf.map_fn(f, boundaries))
-        
-        # The differential equation mapped to values except boundaries:
-        # sum_over_F = tf.math.reduce_sum(tf.map_fn(differential_equation, x[1:-1]))
+        boundaries = tf.convert_to_tensor(np.array([a, b]))
 
-        # This works but is not the correct solution:
-        sum_over_boundary_terms = 0
+        # The boundary conditions are f(a) = 0 and f(b) = 0
+        # sum_over_boundary_terms = tf.math.reduce_sum(tf.map_fn(f, boundaries))  # ???
+
+        sum_over_boundary_terms = f(a)**2 + f(b)**2
         sum_over_F = tf.math.reduce_sum(tf.map_fn(differential_equation, x))
 
         return sum_over_F / i_max + sum_over_boundary_terms
@@ -94,13 +89,13 @@ def build_model(units):
 a = 0
 b = 2
 i_max = 100
-epochs = 1000
+epochs = 2000  # 3000 <= gives a good result
 
 
 # model = build_and_train(a, b, i_max, epochs, units)
 
 
-x = np.linspace(a, b, i_max)
+x = np.linspace(a, b, i_max, dtype=np.float32)
 x_tensor = tf.convert_to_tensor(x)
 x_tensor = tf.reshape(x_tensor, (i_max, 1))
 
@@ -127,6 +122,3 @@ plt.plot(x_test, y_correct, label='Correct solution')
 plt.legend()
 plt.show()
 
-
-# loss_fn = my_loss_fn(x_tensor)
-# print(loss_fn(x_tensor, x_tensor))
