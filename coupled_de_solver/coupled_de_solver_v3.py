@@ -2,8 +2,10 @@
 Solves the coupled differential equations
     f'(x) + 3 * g(x) = 0,
     g'(x) - 2 * f(x) = 0
-in the domain 0 <= x <= 3 (or more???) with the boundary conditions
-    f(0) = 0,   g(0) = 2
+in the domain 0 <= x <= 3 (or more?) with the boundary conditions
+    f(0) = 0,   g(0) = 2.
+The correct solution:
+    
 '''
 
 
@@ -11,6 +13,8 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+from keras.callbacks import History
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -93,6 +97,8 @@ class Model():
     def train_model(self, epochs, batch_size, domain_slicing=1, checkpoint_path=None, x_test_tensor=None):
         predictions = []
         eq1_diff_losses = []
+        histories = []
+
         if domain_slicing != 1:
             # Divide the domain into equal siced parts
             for i in range(1, domain_slicing + 1):
@@ -102,7 +108,7 @@ class Model():
                 else:
                     i_max_now = int(self.i_max / domain_slicing) * i
                 x_tensor_now = self.x_tensor[:i_max_now]
-                self.neural_net.fit(x=x_tensor_now, y=x_tensor_now, epochs=epochs, batch_size=batch_size)
+                hist = self.neural_net.fit(x=x_tensor_now, y=x_tensor_now, epochs=epochs, batch_size=batch_size)
                 if checkpoint_path is not None:
                     path_to_this_checkpoint = checkpoint_path + '_' + str(i)  # NOTE: indexing starts from 1
                     self.neural_net.save_weights(path_to_this_checkpoint)
@@ -111,15 +117,17 @@ class Model():
                     eq1_diff_loss = self.eq1(x_test_tensor)
                     predictions.append(prediction)
                     eq1_diff_losses.append(eq1_diff_loss)
+                    histories.append(hist)
         else:
             # No slicing
-            self.neural_net.fit(x=self.x_tensor, y=self.x_tensor, epochs=epochs, batch_size=batch_size)
+            hist = self.neural_net.fit(x=self.x_tensor, y=self.x_tensor, epochs=epochs, batch_size=batch_size)
+            histories.append(hist)
             if x_test_tensor is not None:
                 prediction = self.neural_net.predict(x_test_tensor)
                 eq1_diff_loss = self.eq1(x_test_tensor)
                 predictions.append(prediction)
                 eq1_diff_losses.append(eq1_diff_loss)
-        return predictions, eq1_diff_losses
+        return predictions, eq1_diff_losses, histories
 
 
 # a = 0
