@@ -57,7 +57,7 @@ def build_model(units):
 a = 0
 b = 2
 i_max = 100
-epochs = 1000
+epochs = 10000
 
 x = np.linspace(a, b, i_max, dtype=np.float32)
 x_tensor = tf.convert_to_tensor(x)
@@ -79,7 +79,8 @@ y_correct = -x_correct**2 + 2 * x_correct
 
 import matplotlib.pyplot as plt
 
-plt.plot(x_test, y_prediction, label='The model', marker='o')
+plt.plot(x_test, y_prediction, label='The model')
 plt.plot(x_correct, y_correct, label='Correct solution')
+plt.grid(True)
 plt.legend()
 plt.show()
