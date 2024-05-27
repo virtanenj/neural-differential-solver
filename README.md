@@ -1,4 +1,4 @@
-# NN_for_differential_equations
+# Neural differential solver
 Code for solving differential equations using neural networks
 
 Some sources: 
