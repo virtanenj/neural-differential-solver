@@ -18,12 +18,19 @@ def calcGradients(function, x, order):
     return grads
 
 
-# TODO ability to define grid using linspace and total number of points rather than discretization width
-def genDataLoader(domain, discretization, batch_size=None, batch_shuffle=False):
+def genDataLoader(domain, discretization_num=None, discretization_delta=None, batch_size=None, batch_shuffle=False):
     assert isinstance(domain, list) and all(isinstance(d, list) and len(d)==2 for d in domain), \
         "`domain` should be a list of lists all with two floats for lower and higher boundry of the dimension."
-    ranges = [np.arange(d[0], d[1], discretization) for d in domain]
-    grid = np.meshgrid(*ranges)
+    if (discretization_num is None) and (discretization_delta is None): 
+        raise ValueError("`genDataLoader` expects rither `discretization_num: int` or `discretization_delta: int` to be given.")
+    elif (discretization_num is not None) and (discretization_delta is not None):
+        print(("Warning: both `discretization_num` and `discretization_delta` was given while only either one is used. Defaulting"  
+              "to using `discretization_num`."))
+    if discretization_num is not None:
+        grid_coords = [np.linspace(d[0], d[1], discretization_num) for d in domain]
+    elif discretization_delta is not None:
+        grid_coords = [np.arange(d[0], d[1], discretization_delta) for d in domain]
+    grid = np.meshgrid(*grid_coords)
     x = np.stack([g.flatten() for g in grid], axis=-1)
     x_tensor = torch.from_numpy(x).float().requires_grad_(True)
     if batch_size is None:
@@ -115,6 +122,16 @@ def traininigDomainExtension(model, loss_fn, domains, discretization, num_epochs
     return loss_history
 
 
+# TODO
+def downloadModel():
+    pass
+
+
+# TODO
+def loadModel():
+    pass
+
+
 class DNN(nn.Module):
     def __init__(self, input_shape: int, hidden_shapes: List[int], output_shape: int, activations: List[Callable] = None):
         super(DNN, self).__init__()
@@ -159,8 +176,8 @@ class ConvDNN(nn.Module):
 
 
 class LossFunction(nn.Module):
-    def __init__(self, differential_expressions: List[Callable], bc_grad_orders: List[int], 
-                 bc_functions: list[Callable], bc_boundaries: List[float], ):
+    def __init__(self, differential_expressions: List[Callable], bc_boundaries: List[float], 
+                 bc_functions: list[Callable], bc_grad_orders: List[int]):
         super(LossFunction, self).__init__()
         self.differential_expressions = differential_expressions
         self.problem_order = len(bc_boundaries)
@@ -195,8 +212,6 @@ class LossFunction(nn.Module):
         F_term = self.differential_expressions(model, x_data).square().sum() / x_max
         bc_term = self._calcBoundaryCondition(model, x_data, include_all_bc)
         return F_term + bc_term
-
-
 
 
 if __name__ == "__main__":
