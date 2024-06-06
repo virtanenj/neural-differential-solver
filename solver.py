@@ -22,7 +22,7 @@ def genDataLoader(domain, discretization_num=None, discretization_delta=None, ba
     assert isinstance(domain, list) and all(isinstance(d, list) and len(d)==2 for d in domain), \
         "`domain` should be a list of lists all with two floats for lower and higher boundry of the dimension."
     if (discretization_num is None) and (discretization_delta is None): 
-        raise ValueError("`genDataLoader` expects rither `discretization_num: int` or `discretization_delta: int` to be given.")
+        raise ValueError("`genDataLoader` expects either `discretization_num: int` or `discretization_delta: int` to be given.")
     elif (discretization_num is not None) and (discretization_delta is not None):
         print(("Warning: both `discretization_num` and `discretization_delta` was given while only either one is used. Defaulting"  
               "to using `discretization_num`."))
