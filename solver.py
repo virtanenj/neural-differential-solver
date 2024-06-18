@@ -39,7 +39,7 @@ def genDataLoader(domain, discretization_num=None, discretization_delta=None, ba
     return dataloader
 
 
-def training(model, loss_fn, dataloader, num_epochs, learning_rate, save_model_freq=None, save_model_path=None):
+def training(model, loss_fn, dataloader, num_epochs, learning_rate, save_model_freq=None, save_model_path=None, print_progress=False):
     if (save_model_path is not None) and (save_model_freq is None):
         raise TypeError("`save_model_path` is not defined while `save_model_freq` is given.")
     
@@ -52,7 +52,6 @@ def training(model, loss_fn, dataloader, num_epochs, learning_rate, save_model_f
         for batch_i, batch_x in enumerate(dataloader):
             # Input data in appropriate shape
             batch_x = batch_x.unsqueeze(-1)
-            # NB no need to specifically calculate forward push
             # Backpropagation
             optimizer.zero_grad()
             loss = loss_fn(model, batch_x)
@@ -68,7 +67,8 @@ def training(model, loss_fn, dataloader, num_epochs, learning_rate, save_model_f
 
         loss_history.append(running_loss)
         # Print progress
-        print("Epoch {}/{} Loss: {:.4f}". format(epoch_i+1, num_epochs, running_loss))
+        if print_progress:
+            print("Epoch {}/{} Loss: {:.4f}". format(epoch_i+1, num_epochs, running_loss))
 
     return loss_history
 
