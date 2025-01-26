@@ -66,6 +66,7 @@ def training(model, loss_fn, dataloader, num_epochs, learning_rate, save_model_f
                 torch.save(model.state_dict(), "{}/epoch_{}.pth".format(save_model_path, epoch_i+1))
 
         loss_history.append(running_loss)
+        
         # Print progress
         if print_progress:
             print("Epoch {}/{} Loss: {:.4f}". format(epoch_i+1, num_epochs, running_loss))
