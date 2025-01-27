@@ -1,2 +1,0 @@
-Model parameters: a=0, b=3, i_max=100, hlayers=[100], epochs=2000, domain_slicing=2
-Training time (seconds): 76.08257508277893
