@@ -4,12 +4,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.utils as utils
 from torchinfo import summary
 
 torch.set_default_dtype(torch.float32)
 
 class LossFunction(nn.Module):
-    def __init__(self, equation_operators, boundary_conditions):
+    def __init__(self, equation_operators, boundary_conditions, de_weight=1.0, bc_weight=1.0):
         '''
         equation_operator: Callable
             differential operator F such that F(x, f(x), grad f(x), ..., grad^m f(x)) = 0
@@ -26,17 +27,18 @@ class LossFunction(nn.Module):
         self.bc_operator = [bc[0] for bc in boundary_conditions]
         self.bc_xb = [bc[1] for bc in boundary_conditions]
         self.bc_num = len(boundary_conditions)
-        self.equation_operator_weights = [] # TODO
-        self.bc_weights = [] # TODO
+        self.de_weight = de_weight
+        self.bc_weight = bc_weight
 
     def __call__(self, model, x):
         loss = torch.tensor(0.0, device=x.device)
         for eq_i in range(self.eq_num):
             loss += self.equation_operators[eq_i](x, model).square().mean()
+        loss *= self.de_weight
         for bc_i in range(self.bc_num):
             bc_term = self.bc_operator[bc_i](self.bc_xb[bc_i], model)
             bc_loss = bc_term.square().mean()
-            loss += bc_loss
+            loss += self.bc_weight * bc_loss
         return loss
     
 def save_results(result_dir, model, loss_history):
@@ -56,7 +58,11 @@ def load_model(model, weights_path):
 # TODO ways to avoid seemingly overfitting (even though this should not happen)
 # E.g. early stopping, regularization (maybe), batch normalization (maybe), gradient clipping
 # TODO learning rate decaying: E.g. use the scheduler from torch.optim.lr_scheduler. In particular ReduceLROnPlateau is recommended. Useful to use together with early stopping.
-def train(model, loss_fn, domain, epochs, lr=0.001, results_dir=None, print_progress=False,  print_progress_percentage=None, eval_fn=None):
+def train(model, loss_fn, domain, epochs, lr=0.001, batch_size=1, results_dir=None, print_progress=False,  print_progress_percentage=None, eval_fn=None):
+
+    # Create DataLoader for batching domain
+    dataset = utils.data.TensorDataset(domain)
+    dataloader = utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_history = np.zeros(epochs)
@@ -64,19 +70,34 @@ def train(model, loss_fn, domain, epochs, lr=0.001, results_dir=None, print_prog
         eval_history = np.zeros(epochs)
 
     for epoch_idx in range(epochs):
-        # TODO possible use of mini-batches
-        optimizer.zero_grad()
-        loss = loss_fn(model, domain)
-        loss.backward()
-        optimizer.step()
-        loss_history[epoch_idx] = loss.item()
+        epoch_loss = 0.0
+        num_batches = 0
+        
+        for batch in dataloader:
+            batch_domain = batch[0] # "Unpack the batch"
+            optimizer.zero_grad()
+            loss = loss_fn(model, batch_domain)
+            loss.backward()
+            optimizer.step()
 
-        # TODO possibly compute error against true solution
+            epoch_loss += loss.item()
+            num_batches += 1
+        
+        avg_epoch_loss = epoch_loss / num_batches
+        loss_history[epoch_idx] = avg_epoch_loss
+
+
+        # optimizer.zero_grad()
+        # loss = loss_fn(model, domain)
+        # loss.backward()
+        # optimizer.step()
+        # loss_history[epoch_idx] = loss.item()
+
+        # TODO possible evaluations. E.g.
+        # - compute error against true solution
+        # - compute output of modelled differential operator F
         if eval_fn is not None:
             pass
-
-        # TODO possibly compute output of modelled differential operator F
-        # NOTE pretty much equal loss value except square and the boundary conditions
 
         if print_progress:
             if print_progress_percentage is not None:
