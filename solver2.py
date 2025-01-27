@@ -58,13 +58,22 @@ def load_model(model, weights_path):
 # TODO ways to avoid seemingly overfitting (even though this should not happen)
 # E.g. early stopping, regularization (maybe), batch normalization (maybe), gradient clipping
 # TODO learning rate decaying: E.g. use the scheduler from torch.optim.lr_scheduler. In particular ReduceLROnPlateau is recommended. Useful to use together with early stopping.
-def train(model, loss_fn, domain, epochs, lr=0.001, batch_size=1, results_dir=None, print_progress=False,  print_progress_percentage=None, eval_fn=None):
+def train(model, loss_fn, domain, epochs, lr=0.001, batch_size=None, use_scheduler=False, scheduler_factor=0.1, scheduler_patience=10, results_dir=None, print_progress=False,  print_progress_percentage=None, eval_fn=None):
 
     # Create DataLoader for batching domain
+    if batch_size is None:
+        batch_size = domain.shape[0] # Use all data for single batch
     dataset = utils.data.TensorDataset(domain)
     dataloader = utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
     optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # Learning rate scheduler TODO tune parameters
+    if use_scheduler:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='min', factor=scheduler_factor, 
+            patience=scheduler_patience, min_lr=1e-6)
+    
     loss_history = np.zeros(epochs)
     if eval_fn is not None: 
         eval_history = np.zeros(epochs)
@@ -86,6 +95,8 @@ def train(model, loss_fn, domain, epochs, lr=0.001, batch_size=1, results_dir=No
         avg_epoch_loss = epoch_loss / num_batches
         loss_history[epoch_idx] = avg_epoch_loss
 
+        # Update learning rate based on loss
+        if use_scheduler: scheduler.step(avg_epoch_loss)
 
         # optimizer.zero_grad()
         # loss = loss_fn(model, domain)
